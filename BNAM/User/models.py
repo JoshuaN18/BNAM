@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.contrib.auth.models import BaseUserManager, AbstractBaseUser
 from django.utils.translation import gettext_lazy as _
@@ -36,7 +37,7 @@ class UserProfileManager(BaseUserManager):
         return user
     
 class UserProfile(AbstractBaseUser):
-  
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(verbose_name='email address',
         max_length=255,unique=True,
         )
