@@ -5,7 +5,6 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from . serializers import SignupSerializer
-import logging
 class SignupAPIView(APIView):
 
     permission_classes = []
@@ -20,8 +19,8 @@ class SignupAPIView(APIView):
             serializer.save()
             data = serializer.data
             response = status.HTTP_202_ACCEPTED
+
         else:
-            
             data = ''
             raise ValidationError({'password_mismatch': 'Password fields didn not match.'})     
         return Response(data, status=response)

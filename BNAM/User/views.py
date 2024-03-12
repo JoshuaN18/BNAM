@@ -1,22 +1,33 @@
 from django.shortcuts import render, HttpResponse
-from rest_framework import response, status
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from .models import UserProfile
 from .serializers import UserSerializer
 from rest_framework.permissions import IsAuthenticated
 
 # Create your views here.
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_users(request):
-    users = UserProfile.objects.all()
-    serializer = UserSerializer(users, many=True)
+class GetUserAPIView(APIView):
 
-    return response.Response(serializer.data, status=status.HTTP_200_OK)
+    def retrieve(self, request, id):
+        try:
+            user = UserProfile.objects.get(id=id)
+        except UserProfile.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
-@api_view(['POST'])
-def add_user(request):
-    serializer = UserSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-    return response.Response(serializer.data)
+        serializer = UserSerializer(user)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    def get_list(self, request):
+        users = UserProfile.objects.all()
+        serializer = UserSerializer(users, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+    def get(self, request, id=None):
+        if id is not None:
+            return self.retrieve(request, id)
+        else:
+            return self.get_list(request)
