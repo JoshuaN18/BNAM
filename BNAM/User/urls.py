@@ -4,5 +4,5 @@ from . import views
 
 urlpatterns = [
     path("", GetUserAPIView.as_view(), name="list_users"),
-    path("<int:id>/", GetUserAPIView.as_view(), name="get_user"),
+    path("<uuid:id>/", GetUserAPIView.as_view(), name="get_user"),
 ]
