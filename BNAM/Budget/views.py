@@ -30,9 +30,34 @@ class GetBugetAPIView(APIView):
         serializer = BudgetSerializer(budgets, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-
     def get(self, request, budget_id=None):
         if budget_id is not None:
             return self.retrieve(request, budget_id)
         else:
             return self.get_list(request)
+        
+class UpdateBudgetAPIView(APIView):
+    def put(self, request, budget_id):
+        return self.update(request, budget_id)
+
+    def update(self, request, budget_id):
+        try:
+            budget = Budget.objects.get(budget_id=budget_id)
+        except Budget.DoesNotExist:
+            return Response({'error': 'Budget Not Found'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = BudgetSerializer(budget, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class BudgetDeleteAPIView(APIView):
+    def delete(self, request, budget_id):
+        try:
+            budget = Budget.objects.get(budget_id=budget_id)
+        except Budget.DoesNotExist:
+            return Response({'error': 'Budget Not Found'}, status=status.HTTP_404_NOT_FOUND)
+
+        budget.delete()
+        return Response({'message': 'Budget deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
