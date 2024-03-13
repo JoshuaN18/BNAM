@@ -38,12 +38,19 @@ CREATE TABLE Payee (
     payee_name varchar(50)
 );
 
+CREATE TABLE Category_Group (
+    category_group_id UUID PRIMARY NOT NULL,
+    category_group_name varchar(50),
+);
+
 CREATE TABLE Category (
     category_id UUID PRIMARY NOT NULL,
     category_name varchar(50),
     target_type varchar(50),
     amount float,
     budget_id UUID NOT NULL,
+    category_group_id UUID,
+    FOREIGN KEY (category_group_id) REFERENCES Category_Group(category_group_id),
     FOREIGN KEY (budget_id) REFERENCES Budget(budget_id)
 );
 
