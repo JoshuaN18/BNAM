@@ -1,11 +1,22 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from rest_framework import status, generics
+from rest_framework import status, permissions
+from rest_framework.generics import UpdateAPIView, CreateAPIView, RetrieveAPIView, ListAPIView, DestroyAPIView
 from .models import Budget
 from .serializers import BudgetSerializer
+import logging
+from rest_framework.exceptions import NotFound
 
-class BudgetCreateAPIView(generics.CreateAPIView):
+class IsBudgetOwner(permissions.BasePermission):
+    
+    def has_object_permission(self, request, view, obj):
+        logger = logging.getLogger(__name__)
+        logger.warning(obj.user)
+        logger.warning(request.user)
+        return obj.user == request.user
+
+class BudgetCreateAPIView(CreateAPIView):
     queryset = Budget.objects.all()
     serializer_class = BudgetSerializer
     permission_classes = [IsAuthenticated]
@@ -14,50 +25,74 @@ class BudgetCreateAPIView(generics.CreateAPIView):
         serializer.save(user=self.request.user)
     
 
-class GetBugetAPIView(APIView):
-    def retrieve(self, request, budget_id):
+class GetBudgetAPIView(RetrieveAPIView, ListAPIView):
+    serializer_class = BudgetSerializer
+    permission_classes = [IsAuthenticated, IsBudgetOwner]
+    queryset = Budget.objects.all()
+
+    def get_object(self):
+        budget_id = self.kwargs.get('budget_id')
         try:
-            budget = Budget.objects.get(budget_id=budget_id)
+            obj = self.get_queryset().get(budget_id=budget_id)
         except Budget.DoesNotExist:
-            return Response({'error': 'Budget Not Found'}, status=status.HTTP_404_NOT_FOUND)
+            raise NotFound("Budget not found")
+        self.check_object_permissions(self.request, obj)
+        return obj
 
-        serializer = BudgetSerializer(budget)
+    def get(self, request, *args, **kwargs):
+        budget_id = self.kwargs.get('budget_id')
+        if budget_id is not None:
+            return self.retrieve(request, *args, **kwargs)
+        else:
+            return self.list(request, *args, **kwargs)
 
+    def list(self, request, *args, **kwargs):
+        self.queryset = self.queryset.filter(user=request.user)
+        return super().list(request, *args, **kwargs)
+    
+class UpdateBudgetAPIView(UpdateAPIView):
+    queryset = Budget.objects.all()
+    serializer_class = BudgetSerializer
+    permission_classes = [IsAuthenticated, IsBudgetOwner]
+
+    def get_object(self):
+        budget_id = self.kwargs.get('budget_id')
+        queryset = self.filter_queryset(self.get_queryset())
+        obj = queryset.filter(budget_id=budget_id).first()
+        if obj is None:
+            raise NotFound("Budget not found")
+        return obj
+
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.check_object_permissions(self.request, instance)
+        
+        serializer = self.get_serializer(instance, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        serializer.save()
+        
         return Response(serializer.data, status=status.HTTP_200_OK)
     
-    def get_list(self, request):
-        budgets = Budget.objects.all()
-        serializer = BudgetSerializer(budgets, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+class BudgetDeleteAPIView(DestroyAPIView):
+    serializer_class = BudgetSerializer
+    permission_classes = [IsAuthenticated, IsBudgetOwner]
+    queryset = Budget.objects.all()
 
-    def get(self, request, budget_id=None):
-        if budget_id is not None:
-            return self.retrieve(request, budget_id)
-        else:
-            return self.get_list(request)
-        
-class UpdateBudgetAPIView(APIView):
-    def put(self, request, budget_id):
-        return self.update(request, budget_id)
-
-    def update(self, request, budget_id):
+    def get_object(self):
+        budget_id = self.kwargs.get('budget_id')
         try:
-            budget = Budget.objects.get(budget_id=budget_id)
+            obj = self.get_queryset().get(budget_id=budget_id)
         except Budget.DoesNotExist:
-            return Response({'error': 'Budget Not Found'}, status=status.HTTP_404_NOT_FOUND)
+            raise NotFound("Budget not found")
+        self.check_object_permissions(self.request, obj)
+        return obj
+    
+    def delete(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.delete()
 
-        serializer = BudgetSerializer(budget, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-class BudgetDeleteAPIView(APIView):
-    def delete(self, request, budget_id):
-        try:
-            budget = Budget.objects.get(budget_id=budget_id)
-        except Budget.DoesNotExist:
-            return Response({'error': 'Budget Not Found'}, status=status.HTTP_404_NOT_FOUND)
-
-        budget.delete()
         return Response({'message': 'Budget deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
