@@ -32,6 +32,8 @@ CREATE TABLE Account (
 CREATE TABLE Payee (
     payee_id UUID PRIMARY KEY NOT NULL,
     payee_name varchar(50)
+    user_id UUID NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES User(id)
 );
 
 CREATE TABLE Category_Group (
