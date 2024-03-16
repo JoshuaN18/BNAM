@@ -18,8 +18,8 @@ class Account(models.Model):
     cleared_balance = models.FloatField(default=0)
     uncleared_balance = models.FloatField(default=0)
     working_balance = models.FloatField(default=0)
-    budget = models.ForeignKey(Budget, on_delete=models.CASCADE, editable=False)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, editable=False)
+    budget = models.ForeignKey(Budget, on_delete=models.CASCADE, editable=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, editable=True)
 
     def __str__(self):
         return self.account_name
