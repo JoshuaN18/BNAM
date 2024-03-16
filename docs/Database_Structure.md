@@ -39,6 +39,10 @@ CREATE TABLE Payee (
 CREATE TABLE Category_Group (
     category_group_id UUID PRIMARY NOT NULL,
     category_group_name varchar(50),
+    budget_id UUID NOT NULL,
+    user_id UUID NOT NULL,
+    FOREIGN KEY (budget_id) REFERENCES Budget(budget_id)
+    FOREIGN KEY (user_id) REFERENCES User(id)
 );
 
 CREATE TABLE Category (
