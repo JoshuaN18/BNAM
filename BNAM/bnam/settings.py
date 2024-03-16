@@ -46,7 +46,8 @@ INSTALLED_APPS = [
     'User',
     'Budget',
     'Account',
-    'Payee'
+    'Payee',
+    'CategoryGroup',
 ]
 
 MIDDLEWARE = [
