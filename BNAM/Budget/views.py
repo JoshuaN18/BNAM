@@ -7,6 +7,7 @@ from .models import Budget
 from .serializers import BudgetSerializer
 import logging
 from rest_framework.exceptions import NotFound
+from .exceptions.BudgetNotFound import BudgetNotFound
 
 class IsBudgetOwner(permissions.BasePermission):
     
@@ -31,11 +32,7 @@ class GetBudgetAPIView(RetrieveAPIView, ListAPIView):
     queryset = Budget.objects.all()
 
     def get_object(self):
-        budget_id = self.kwargs.get('budget_id')
-        try:
-            obj = self.get_queryset().get(budget_id=budget_id)
-        except Budget.DoesNotExist:
-            raise NotFound("Budget not found")
+        obj = get_budget(self.kwargs, self.get_queryset())
         self.check_object_permissions(self.request, obj)
         return obj
 
@@ -56,11 +53,8 @@ class UpdateBudgetAPIView(UpdateAPIView):
     permission_classes = [IsAuthenticated, IsBudgetOwner]
 
     def get_object(self):
-        budget_id = self.kwargs.get('budget_id')
-        queryset = self.filter_queryset(self.get_queryset())
-        obj = queryset.filter(budget_id=budget_id).first()
-        if obj is None:
-            raise NotFound("Budget not found")
+        obj = get_budget(self.kwargs, self.get_queryset())
+        self.check_object_permissions(self.request, obj)
         return obj
 
     def put(self, request, *args, **kwargs):
@@ -83,11 +77,7 @@ class BudgetDeleteAPIView(DestroyAPIView):
     queryset = Budget.objects.all()
 
     def get_object(self):
-        budget_id = self.kwargs.get('budget_id')
-        try:
-            obj = self.get_queryset().get(budget_id=budget_id)
-        except Budget.DoesNotExist:
-            raise NotFound("Budget not found")
+        obj = get_budget(self.kwargs, self.get_queryset())
         self.check_object_permissions(self.request, obj)
         return obj
     
@@ -96,3 +86,11 @@ class BudgetDeleteAPIView(DestroyAPIView):
         instance.delete()
 
         return Response({'message': 'Budget deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+    
+def get_budget(kwargs, get_queryset):
+    budget_id = kwargs.get('budget_id')
+    try:
+        obj = get_queryset.get(budget_id=budget_id)
+    except Budget.DoesNotExist:
+        raise BudgetNotFound(budget_id)
+    return obj

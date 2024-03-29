@@ -7,7 +7,12 @@ from .models import Category
 from Budget.models import Budget
 from CategoryGroup.models import CategoryGroup
 from .serializers import CategorySerializer
-from rest_framework.exceptions import NotFound, ValidationError
+from CategoryGroup.exceptions.CategoryGroupNotFound import CategoryGroupNotFound
+from CategoryGroup.exceptions.CategoryGroupDoesNotBelongToBudget import CategoryGroupDoesNotBelongToBudget
+from Budget.exceptions.BudgetNotFound import BudgetNotFound
+from Budget.exceptions.BudgetCannotBeNull import BudgetCannotBeNull
+from .exceptions.CategoryNotFound import CategoryNotFound
+
 
 class IsCategoryOwner(permissions.BasePermission):
     
@@ -22,25 +27,27 @@ class CategoryCreateAPIView(CreateAPIView):
     def perform_create(self, serializer):
         budget_id = self.request.data.get('budget')
         if budget_id is None:
-            raise ValidationError({'message': 'budget cannot be null'})
+            raise BudgetCannotBeNull()
         try:
             budget = Budget.objects.get(pk=budget_id)
         except Budget.DoesNotExist:
-            raise ValidationError({'message': f'Budget with ID {budget_id} does not exist'})
+            raise BudgetNotFound(budget_id)
         
         category_group_id = self.request.data.get('category_group')
         if category_group_id != None:
             try:
                 category_group = CategoryGroup.objects.get(pk=category_group_id)
-            except Budget.DoesNotExist:
-                raise ValidationError({'message': f'Budget with ID {budget_id} does not exist'})
+            except CategoryGroup.DoesNotExist:
+                raise CategoryGroupNotFound(category_group_id)
+            
             serializer.validated_data['category_group'] = category_group
             if category_group.budget != budget:
-                raise ValidationError({'message': f'Category Group with ID {category_group_id} does not belong to Budget with ID {budget_id}'})
+                raise CategoryGroupDoesNotBelongToBudget(category_group_id, budget_id)
             serializer.validated_data['category_group'] = category_group
 
         if budget.user != self.request.user:
-            raise ValidationError({'message': f'Budget with ID {budget_id} does not exist'})
+            raise BudgetNotFound(budget_id)
+        
         serializer.validated_data['budget'] = budget
         serializer.save(user=self.request.user)
 
@@ -50,11 +57,7 @@ class GetCategoryAPIView(RetrieveAPIView, ListAPIView):
     queryset = Category.objects.all()
 
     def get_object(self):
-        category_id = self.kwargs.get('category_id')
-        try:
-            obj = self.get_queryset().get(category_id=category_id)
-        except Category.DoesNotExist:
-            raise NotFound("Category not found")
+        obj = get_category(self.kwargs, self.get_queryset())
         self.check_object_permissions(self.request, obj)
         return obj
 
@@ -75,11 +78,8 @@ class UpdateCategoryAPIView(UpdateAPIView):
     permission_classes = [IsAuthenticated, IsCategoryOwner]
 
     def get_object(self):
-        category_id = self.kwargs.get('category_id')
-        queryset = self.filter_queryset(self.get_queryset())
-        obj = queryset.filter(category_id=category_id).first()
-        if obj is None:
-            raise NotFound("Category not found")
+        obj = get_category(self.kwargs, self.get_queryset())
+        self.check_object_permissions(self.request, obj)
         return obj
 
     def put(self, request, *args, **kwargs):
@@ -102,11 +102,7 @@ class CategoryDeleteAPIView(DestroyAPIView):
     queryset = Category.objects.all()
 
     def get_object(self):
-        category_id = self.kwargs.get('category_id')
-        try:
-            obj = self.get_queryset().get(category_id=category_id)
-        except Category.DoesNotExist:
-            raise NotFound("Category not found")
+        obj = get_category(self.kwargs, self.get_queryset())
         self.check_object_permissions(self.request, obj)
         return obj
     
@@ -115,3 +111,11 @@ class CategoryDeleteAPIView(DestroyAPIView):
         instance.delete()
 
         return Response({'message': 'Category deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+    
+def get_category(kwargs, get_queryset):
+    category_id = kwargs.get('category_id')
+    try:
+        obj = get_queryset.get(category_id=category_id)
+    except Category.DoesNotExist:
+        raise CategoryNotFound(category_id)
+    return obj

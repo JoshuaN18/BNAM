@@ -7,7 +7,7 @@ from .models import UserProfile
 from .serializers import UserSerializer
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import UpdateAPIView, DestroyAPIView
-from rest_framework.exceptions import NotFound
+from .exceptions.UserNotFound import UserNotFound
 import logging
 class IsBudgetOwner(permissions.BasePermission):
     
@@ -24,7 +24,7 @@ class GetUserAPIView(APIView):
         try:
             user = UserProfile.objects.get(id=id)
         except UserProfile.DoesNotExist:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            raise UserNotFound(user_id=id)
 
         serializer = UserSerializer(user)
 
@@ -50,11 +50,7 @@ class UpdateUserAPIView(UpdateAPIView):
         return UserProfile.objects.all()
 
     def get_object(self):
-        user_id = self.kwargs.get('id')
-        queryset = self.get_queryset()
-        obj = queryset.filter(id=user_id).first()
-        if obj is None:
-            raise NotFound("User not found")
+        obj = get_user(self.kwargs, self.get_queryset())
         self.check_object_permissions(self.request, obj)
         return obj
     
@@ -74,11 +70,7 @@ class UserDeleteAPIView(DestroyAPIView):
     permission_classes = [IsAuthenticated, IsBudgetOwner]
 
     def get_object(self):
-        id = self.kwargs.get('id')
-        try:
-            obj = self.get_queryset().get(id=id)
-        except UserProfile.DoesNotExist:
-            raise NotFound("Budget not found")
+        obj = get_user(self.kwargs, self.get_queryset())
         self.check_object_permissions(self.request, obj)
         return obj
     
@@ -87,3 +79,11 @@ class UserDeleteAPIView(DestroyAPIView):
         instance.delete()
 
         return Response({'message': 'User deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+    
+def get_user(kwargs, get_queryset):
+    user_id = kwargs.get('id')
+    try:
+        obj = get_queryset.get(id=user_id)
+    except UserProfile.DoesNotExist:
+        raise UserNotFound(user_id)
+    return obj

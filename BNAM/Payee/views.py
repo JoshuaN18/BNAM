@@ -4,7 +4,7 @@ from rest_framework import status, permissions
 from rest_framework.generics import UpdateAPIView, CreateAPIView, RetrieveAPIView, ListAPIView, DestroyAPIView
 from .models import Payee
 from .serializers import PayeeSerializer
-from rest_framework.exceptions import NotFound
+from .exceptions.PayeeNotFound import PayeeNotFound
 
 class IsPayeeOwner(permissions.BasePermission):
     
@@ -26,11 +26,7 @@ class GetPayeeAPIView(RetrieveAPIView, ListAPIView):
     queryset = Payee.objects.all()
 
     def get_object(self):
-        payee_id = self.kwargs.get('payee_id')
-        try:
-            obj = self.get_queryset().get(payee_id=payee_id)
-        except Payee.DoesNotExist:
-            raise NotFound("Payee not found")
+        obj = get_payee(self.kwargs, self.get_queryset())
         self.check_object_permissions(self.request, obj)
         return obj
 
@@ -51,11 +47,8 @@ class UpdatePayeeAPIView(UpdateAPIView):
     permission_classes = [IsAuthenticated, IsPayeeOwner]
 
     def get_object(self):
-        payee_id = self.kwargs.get('payee_id')
-        queryset = self.filter_queryset(self.get_queryset())
-        obj = queryset.filter(payee_id=payee_id).first()
-        if obj is None:
-            raise NotFound("Payee not found")
+        obj = get_payee(self.kwargs, self.get_queryset())
+        self.check_object_permissions(self.request, obj)
         return obj
 
     def put(self, request, *args, **kwargs):
@@ -78,11 +71,7 @@ class PayeeDeleteAPIView(DestroyAPIView):
     queryset = Payee.objects.all()
 
     def get_object(self):
-        payee_id = self.kwargs.get('payee_id')
-        try:
-            obj = self.get_queryset().get(payee_id=payee_id)
-        except Payee.DoesNotExist:
-            raise NotFound("Payee not found")
+        obj = get_payee(self.kwargs, self.get_queryset())
         self.check_object_permissions(self.request, obj)
         return obj
     
@@ -91,3 +80,11 @@ class PayeeDeleteAPIView(DestroyAPIView):
         instance.delete()
 
         return Response({'message': 'Payee deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+    
+def get_payee(kwargs, get_queryset):
+    payee_id = kwargs.get('payee_id')
+    try:
+        obj = get_queryset.get(payee_id=payee_id)
+    except Payee.DoesNotExist:
+        raise PayeeNotFound(payee_id)
+    return obj

@@ -6,7 +6,9 @@ from rest_framework.generics import UpdateAPIView, CreateAPIView, RetrieveAPIVie
 from .models import Account
 from Budget.models import Budget
 from .serializers import AccountSerializer
-from rest_framework.exceptions import NotFound, ValidationError
+from .exceptions.AccountNotFound import AccountNotFound
+from Budget.exceptions.BudgetCannotBeNull import BudgetCannotBeNull
+from Budget.exceptions.BudgetNotFound import BudgetNotFound
 
 class IsAccountOwner(permissions.BasePermission):
     
@@ -21,14 +23,15 @@ class AccountCreateAPIView(CreateAPIView):
     def perform_create(self, serializer):
         budget_id = self.request.data.get('budget')
         if budget_id is None:
-            raise ValidationError({'message': 'budget cannot be null'})
+            raise BudgetCannotBeNull()
+        
         try:
             budget = Budget.objects.get(pk=budget_id)
         except Budget.DoesNotExist:
-            raise ValidationError({'message': f'Budget with ID {budget_id} does not exist'})
+            raise BudgetNotFound(budget_id)
 
         if budget.user != self.request.user:
-            raise ValidationError({'message': f'Budget with ID {budget_id} does not exist'})
+            raise BudgetNotFound(budget_id)
         serializer.validated_data['budget'] = budget
         serializer.save(user=self.request.user)
 
@@ -38,11 +41,7 @@ class GetAccountAPIView(RetrieveAPIView, ListAPIView):
     queryset = Account.objects.all()
 
     def get_object(self):
-        account_id = self.kwargs.get('account_id')
-        try:
-            obj = self.get_queryset().get(account_id=account_id)
-        except Account.DoesNotExist:
-            raise NotFound("Account not found")
+        obj = get_account(self.kwargs, self.get_queryset())
         self.check_object_permissions(self.request, obj)
         return obj
 
@@ -63,11 +62,8 @@ class UpdateAccountAPIView(UpdateAPIView):
     permission_classes = [IsAuthenticated, IsAccountOwner]
 
     def get_object(self):
-        account_id = self.kwargs.get('account_id')
-        queryset = self.filter_queryset(self.get_queryset())
-        obj = queryset.filter(account_id=account_id).first()
-        if obj is None:
-            raise NotFound("Account not found")
+        obj = get_account(self.kwargs, self.get_queryset())
+        self.check_object_permissions(self.request, obj)
         return obj
 
     def put(self, request, *args, **kwargs):
@@ -90,11 +86,7 @@ class AccountDeleteAPIView(DestroyAPIView):
     queryset = Account.objects.all()
 
     def get_object(self):
-        account_id = self.kwargs.get('account_id')
-        try:
-            obj = self.get_queryset().get(account_id=account_id)
-        except Account.DoesNotExist:
-            raise NotFound("Account not found")
+        obj = get_account(self.kwargs, self.get_queryset())
         self.check_object_permissions(self.request, obj)
         return obj
     
@@ -103,3 +95,11 @@ class AccountDeleteAPIView(DestroyAPIView):
         instance.delete()
 
         return Response({'message': 'Account deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+
+def get_account(kwargs, get_queryset):
+    account_id = kwargs.get('account_id')
+    try:
+        obj = get_queryset.get(account_id=account_id)
+    except Account.DoesNotExist:
+        raise AccountNotFound(account_id)
+    return obj
