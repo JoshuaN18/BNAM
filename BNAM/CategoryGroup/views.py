@@ -6,7 +6,9 @@ from rest_framework.generics import UpdateAPIView, CreateAPIView, RetrieveAPIVie
 from .models import CategoryGroup
 from Budget.models import Budget
 from .serializers import CategoryGroupSerializer
-from rest_framework.exceptions import NotFound, ValidationError
+from .exceptions.CategoryGroupNotFound import CategoryGroupNotFound
+from Budget.exceptions.BudgetNotFound import BudgetNotFound
+from Budget.exceptions.BudgetCannotBeNull import BudgetCannotBeNull
 
 class IsCategoryGroupOwner(permissions.BasePermission):
     
@@ -21,14 +23,15 @@ class CategoryGroupCreateAPIView(CreateAPIView):
     def perform_create(self, serializer):
         budget_id = self.request.data.get('budget')
         if budget_id is None:
-            raise ValidationError({'message': 'budget cannot be null'})
+            raise BudgetCannotBeNull()
+        
         try:
             budget = Budget.objects.get(pk=budget_id)
         except Budget.DoesNotExist:
-            raise ValidationError({'message': f'Budget with ID {budget_id} does not exist'})
+            raise BudgetNotFound(budget_id)
 
         if budget.user != self.request.user:
-            raise ValidationError({'message': f'Budget with ID {budget_id} does not exist'})
+            raise BudgetNotFound(budget_id)
         serializer.validated_data['budget'] = budget
         serializer.save(user=self.request.user)
 
@@ -38,11 +41,7 @@ class GetCategoryGroupAPIView(RetrieveAPIView, ListAPIView):
     queryset = CategoryGroup.objects.all()
 
     def get_object(self):
-        category_group_id = self.kwargs.get('category_group_id')
-        try:
-            obj = self.get_queryset().get(category_group_id=category_group_id)
-        except CategoryGroup.DoesNotExist:
-            raise NotFound("Category Group not found")
+        obj = get_category_group(self.kwargs, self.get_queryset())
         self.check_object_permissions(self.request, obj)
         return obj
 
@@ -63,11 +62,8 @@ class UpdateCategoryGroupAPIView(UpdateAPIView):
     permission_classes = [IsAuthenticated, IsCategoryGroupOwner]
 
     def get_object(self):
-        category_group_id = self.kwargs.get('category_group_id')
-        queryset = self.filter_queryset(self.get_queryset())
-        obj = queryset.filter(category_group_id=category_group_id).first()
-        if obj is None:
-            raise NotFound("Category Group not found")
+        obj = get_category_group(self.kwargs, self.get_queryset())
+        self.check_object_permissions(self.request, obj)
         return obj
 
     def put(self, request, *args, **kwargs):
@@ -90,11 +86,7 @@ class CategoryGroupDeleteAPIView(DestroyAPIView):
     queryset = CategoryGroup.objects.all()
 
     def get_object(self):
-        category_group_id = self.kwargs.get('category_group_id')
-        try:
-            obj = self.get_queryset().get(category_group_id=category_group_id)
-        except CategoryGroup.DoesNotExist:
-            raise NotFound("Category Group not found")
+        obj = get_category_group(self.kwargs, self.get_queryset())
         self.check_object_permissions(self.request, obj)
         return obj
     
@@ -103,3 +95,11 @@ class CategoryGroupDeleteAPIView(DestroyAPIView):
         instance.delete()
 
         return Response({'message': 'Category Group deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+
+def get_category_group(kwargs, get_queryset):
+    category_group_id = kwargs.get('category_group_id')
+    try:
+        obj = get_queryset.get(category_group_id=category_group_id)
+    except CategoryGroup.DoesNotExist:
+        raise CategoryGroupNotFound(category_group_id)
+    return obj
