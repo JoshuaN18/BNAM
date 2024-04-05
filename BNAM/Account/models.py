@@ -12,7 +12,7 @@ class Account(models.Model):
     ]
 
     account_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    account_name = models.CharField(max_length=50, blank=True)
+    account_name = models.CharField(max_length=50, blank=True, default="Budget")
     account_type = models.CharField(max_length=50, default="Checking", choices=ACCOUNT_TYPE_CHOICES)
     balance = models.FloatField(default=0)
     cleared_balance = models.FloatField(default=0)
