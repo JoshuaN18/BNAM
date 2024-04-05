@@ -29,10 +29,11 @@ class CategoryGroupCreateAPIView(CreateAPIView):
             budget = Budget.objects.get(pk=budget_id)
         except Budget.DoesNotExist:
             raise BudgetNotFound(budget_id)
-
+        serializer.validated_data['budget'] = budget
+        
         if budget.user != self.request.user:
             raise BudgetNotFound(budget_id)
-        serializer.validated_data['budget'] = budget
+        
         serializer.save(user=self.request.user)
 
 class GetCategoryGroupAPIView(RetrieveAPIView, ListAPIView):
