@@ -10,6 +10,7 @@ from .exceptions.MonthlyCategoryNotFound import MonthlyCategoryNotFound
 from Category.models import Category
 from Category.exceptions.CategoryNotFound import CategoryNotFound
 from Category.exceptions.CategoryCannotBeNull import CategoryCannotBeNull
+from datetime import datetime
 
 
 class IsMonthlyCategoryOwner(permissions.BasePermission):
@@ -26,7 +27,7 @@ class MonthlyCategoryCreateAPIView(CreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
-        category_id = self.request.data.get('category')
+        category_id = self.request.data.get('category_id')
         if category_id is None:
             raise CategoryCannotBeNull()
         
@@ -60,7 +61,17 @@ class GetMonthlyCategoryAPIView(RetrieveAPIView, ListAPIView):
             return self.list(request, *args, **kwargs)
 
     def list(self, request, *args, **kwargs):
-        self.queryset = self.queryset.filter(user=request.user)
+        year = request.query_params.get('year')
+        month = request.query_params.get('month')
+
+        # Filter queryset based on year and month
+        if year and month:
+            # Assuming MonthlyCategory has fields 'year' and 'month' for filtering
+            self.queryset = self.queryset.filter(year=year, month=month, user=request.user)
+        else:
+            # If year and month are not provided, just filter by user
+            self.queryset = self.queryset.filter(user=request.user)
+
         return super().list(request, *args, **kwargs)
     
 class UpdateMonthlyCategoryAPIView(UpdateAPIView):
