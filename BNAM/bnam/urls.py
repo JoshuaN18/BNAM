@@ -11,4 +11,5 @@ urlpatterns = [
     path('api/categorygroups/', include('CategoryGroup.urls')),
     path('api/categories/', include('Category.urls')),
     path('api/monthlycategories/', include('MonthlyCategory.urls')),
+    path('api/transactions/', include('Transaction.urls')),
 ]
