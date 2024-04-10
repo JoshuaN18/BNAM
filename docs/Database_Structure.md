@@ -59,7 +59,7 @@ CREATE TABLE Category (
 
 CREATE TABLE Monthly_Category (
     monthly_category_id UUID PRIMARY NOT NULL,
-    month char(3),
+    month int,
     year int,
     initial_balance float,
     activity float,
